@@ -16,9 +16,12 @@ attachment=""        # Default color of the attachments. If an empty string is s
 # ----------
 me=$(basename "$0")
 title=""
+preMessage=""
+postMessage=""
 mode="buffering"
 link=""
-textWrapper="\`\`\`"
+preTextWrapper="\n\`\`\`"
+postTextWrapper="\`\`\`\n"
 parseMode=""
 fields=()
 
@@ -39,6 +42,8 @@ function show_help()
 	echo "    -m, --message-formatting format   Switch message formatting (none|link_names|full)."
 	echo "                                      See https://api.slack.com/docs/formatting for more details."
 	echo "    -p, --plain-text                  Don't surround the post with triple backticks."
+	echo "    -r, --pre-message                 Adds text before message"
+	echo "    -o, --post-message                Adds text after message"
 	echo "    -a, --attachment [color]          Use attachment (richly-formatted message)"
 	echo "                                      Color can be 'good','warning','danger' or any hex color code (eg. #439FE0)"
 	echo "                                      See https://api.slack.com/docs/attachments for more details."
@@ -53,7 +58,7 @@ function show_help()
 function send_message()
 {
 	message="$1"
-	escaped_message=$(echo "$textWrapper\n$message\n$textWrapper" | sed 's/"/\\"/g' | sed "s/'/\\'/g" )
+	escaped_message=$(echo "$preMessage$preTextWrapper$message$postTextWrapper$postMessage" | sed 's/"/\\"/g' | sed "s/'/\\'/g" )
 	message_attr=""
 	if [[ $message != "" ]]; then
 		if [[ -n $attachment ]]; then
@@ -74,7 +79,7 @@ function send_message()
 
 			if [[ ${#fields[@]} != 0 ]]; then
 				message_attr="$message_attr, \"fields\": ["
-				for field in "${fields[@]}"; do 
+				for field in "${fields[@]}"; do
 					message_attr="$message_attr $field,"
 				done
 				message_attr=${message_attr%?} # Remove last comma
@@ -84,7 +89,7 @@ function send_message()
 			# Close attachment
 			message_attr="$message_attr }], "
 		else
-			message_attr="\"text\": \"$escaped_message\","	    
+			message_attr="\"text\": \"$escaped_message\","
 		fi
 
 		icon_url=""
@@ -112,7 +117,7 @@ function process_line()
 		prefix=''
 		if [[ -z $attachment ]]; then
 			prefix=$title
-		fi  
+		fi
 		send_message "$prefix$line"
 	elif [[ $mode == "file" ]]; then
 		echo "$line" >> "$filename"
@@ -121,8 +126,8 @@ function process_line()
 			text="$line"
 		else
 			text="$text\n$line"
-		fi  
-	fi  
+		fi
+	fi
 }
 
 function setup()
@@ -233,6 +238,14 @@ while [[ $# -gt 0 ]]; do
 			title="$1"
 			shift
 			;;
+		-r|--pre-message)
+			preMessage="$1"
+			shift
+			;;
+		-o|--post-message)
+			postMessage="$1"
+			shift
+			;;
 		-m|--message-formatting)
 			case "$1" in
 				none)
@@ -253,7 +266,8 @@ while [[ $# -gt 0 ]]; do
 			shift
 			;;
 		-p|--plain-text)
-			textWrapper=""
+			preTextWrapper=""
+			postTextWrapper=""
 			;;
 
 		-a|--attachment)
@@ -294,7 +308,7 @@ while [[ $# -gt 0 ]]; do
 							echo "field value was not specified"
 							show_help
 							exit 1
-							;;			   
+							;;
 						*)
 							if [[ $opt == "-s" || $opt == "--short-field" ]]; then
 								fields+=("{\"title\": \"$1\", \"value\": \"$2\", \"short\": true}")
